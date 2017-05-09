@@ -1,5 +1,5 @@
 ======
-segnet
+segNET
 ======
 
 
@@ -22,4 +22,4 @@ segNET is a suite of tools for identifying gene modules from complex genome-scal
 
 
 * Free software: GNU General Public License v3
-* Documentation: https://segnet.readthedocs.io.
+* Documentation: https://kbchoi-jax.github.io/segnet/
