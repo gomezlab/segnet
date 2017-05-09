@@ -13,7 +13,28 @@ title: {{ site.name }}
 <h2>
 <a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
 
-<pre><code></code></pre>
+<p><strong>Note:</strong> Although segNET will be available at PyPI for <code>pip install</code> or <code>easy_install</code>, we still recommend using <a href="https://www.continuum.io/downloads">Anaconda distribution</a> of python to install all the dependencies without issues. We are going to post segNET on <a href="https://anaconda.org/kbchoi">Anaconda Cloud</a> soon, so add the following channels if you have not already:</p>
+
+<pre><code>$ conda config --add channels r
+$ conda config --add channels bioconda</code>
+</pre>
+
+<p>To avoid conflicts among dependencies, we also highly recommend using conda virtual environment and install segNET in it:</p>
+
+<pre><code>$ git clone https://github.com/kbchoi-jax/segnet
+$ cd segnet
+$ conda create -n segnet python=2
+$ source activate segnet
+(segnet) $ conda install scipy
+(segnet) $ conda install networkx
+(segnet) $ conda install Click
+(segnet) $ python setup.py install</code>
+</pre>
+
+<p>That's all! Now segNET is ready. Once you are done using segNET, you can go out from its virtual environment anytime:</p>
+
+<pre><code>(segnet) $ source deactivate
+</code></pre>
 
 <h2>
 <a id="usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Usage</h2>
