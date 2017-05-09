@@ -63,3 +63,5 @@ target/
 
 .github
 .editorconfig
+_site
+Gemfile.lock
