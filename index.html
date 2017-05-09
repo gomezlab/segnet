@@ -1,0 +1,31 @@
+---
+layout: default
+title: {{ site.name }}
+---
+
+<p>This github webpage is reserved for the future versions of segNET. The full documentation will be available at the following link. Stay tuned!</p>
+
+<ul>
+  <li>Free software: GPLv3 license</li>
+  <li>Full documentation: <a href="https://emase.readthedocs.io/en/latest/readme.html">https://emase.readthedocs.io/en/latest/readme.html</a></li>
+</ul>
+
+<h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<pre><code></code></pre>
+
+<h2>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Usage</h2>
+
+<pre><code></code></pre>
+
+<br>
+<div id="home">
+  <h2>Announcements</h2>
+  <ul class="posts">
+    {% for post in site.posts %}
+      <li><span>{{ post.date | date_to_string }}</span> &raquo; <a href="{{ site.baseurl }}{{ post.url }}">{{ post.title }}</a></li>
+    {% endfor %}
+  </ul>
+</div>

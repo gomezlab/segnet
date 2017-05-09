@@ -1,1 +1,17 @@
-theme: jekyll-theme-slate
+# Setup
+title:        segNET
+tagline:      segNET is a suite of tools for identifying gene modules from complex genome-wide networks
+baseurl:      ""
+paginate:     1
+
+# About/contact
+author:
+  name:       Kwangbom "KB" Choi, Ph.D
+  url:        https://www.jax.org/research-and-faculty/faculty/research-scientists/kb-choi
+
+# Gems
+gems:
+  - jekyll-paginate
+
+#Others
+markdown: kramdown
