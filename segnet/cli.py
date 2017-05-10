@@ -48,7 +48,7 @@ def diffuse(netfile, seedfile, multiseeds, gidfile, outdir, verbose):
     pos_seeds, neg_seeds = segnet.prepare_seeds(seedfile)
     network = segnet.readin_network(netfile, idmap)
     if multiseeds:
-        output = segnet.diffuse_multi_se(network, pos_seeds, neg_seeds, outdir)
+        output = segnet.diffuse_multi_seeds(network, pos_seeds, neg_seeds, outdir)
     else:
         output = segnet.diffuse_single_seed(network, pos_seeds, neg_seeds, outdir)
 

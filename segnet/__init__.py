@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from .segnet import *
 
 __author__ = """Kwangbom "KB" Choi"""
 __email__ = 'kb.choi@jax.org'
