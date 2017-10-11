@@ -22,8 +22,8 @@ def main():
 
 
 @main.command('diffuse', options_metavar='[OPTIONS]', short_help='Run diffuse kernel')
-@click.argument('netfile', metavar='netfile', type=click.File())
-@click.argument('seedfile', metavar='seedfile', type=click.File())
+@click.argument('netfile', metavar='netfile')
+@click.argument('seedfile', metavar='seedfile')
 @click.option('-m', '--multiseeds', is_flag=True)
 @click.option('-c', '--gidfile', type=click.File(mode='r'), help="Gene ID file")
 @click.option('-o', '--outdir', type=click.Path(exists=True, writable=True), help="Output directory")
