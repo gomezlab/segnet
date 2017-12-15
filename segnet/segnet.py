@@ -11,6 +11,7 @@ import scipy.sparse
 from scipy.sparse.linalg import minres
 import matplotlib.pyplot as pp
 import cPickle
+import gzip
 
 
 LOG = utils.get_logger()
@@ -119,7 +120,7 @@ def readin_network(netfile, idmap=None, beta=None, header=False):
     LOG.info("Loading the network from %s" % netfile)
 
     G = nx.Graph()
-    with open(netfile) as fh:
+    with gzip.open(netfile) as fh:
         if header is True:
             fh.next()
         for curline in fh:
