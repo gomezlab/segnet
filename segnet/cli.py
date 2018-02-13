@@ -18,6 +18,11 @@ def main():
 
     A suite of tools for identifying gene modules from complex genome-scale networks
 
+
+    Example usage: segnet diffuse -o outdir network_file source_genes
+
+    segnet diffuse -v -o ../../data/segnet/p2test ../../data/segnet/brain_top_p2 ../../data/segnet/seedsChr2_2.txt
+
     """
 
 
@@ -50,7 +55,21 @@ def diffuse(netfile, seedfile, multiseeds, gidfile, outdir, verbose):
     if multiseeds:
         output = segnet.diffuse_multi_seeds(network, pos_seeds, neg_seeds, outdir)
     else:
-        output = segnet.diffuse_single_seed(network, pos_seeds, neg_seeds, outdir)
+        print("before segnet.diffuse_single_seed in cli.py")
+        #output = segnet.diffuse_single_seed(network, pos_seeds, neg_seeds, outdir)
+        output = segnet.diffuse_single_seed(network, pos_seeds, neg_seeds, outdir=None)
+        print("after diffuse_single_seed, printing output")
+        #print(output)
+        segnet.plot_histogram(output, outfile="test2.png")
+        print("after plot_histogram, now drawing network")
+        segnet.draw_modules(network, network.nodes())
+        print("after draw_modules")
+
+        #f = open(os.path.join(outdir, 'results.pickled', 'wb')
+        #cPickle.dump(all_results, f)
+        #f.close()
+        #segnet.plot_histogram(output)
+
 
 
 if __name__ == "__main__":

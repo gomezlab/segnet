@@ -11,7 +11,7 @@ import scipy.sparse
 from scipy.sparse.linalg import minres
 import matplotlib.pyplot as pp
 import cPickle
-import gzip
+#import gzip
 
 
 LOG = utils.get_logger()
@@ -490,7 +490,7 @@ def diffuse_multi_seeds(G, pos_seeds, neg_seeds, outdir):
     if outdir is not None:
         with open(os.path.join(outdir, 'diffusion_profile.tsv'), 'w') as fh:
             for node_name, node_info in result.iteritems():
-                fh.write("%s\t%.4f\t%d" % (node_name, node_info[0], node_info[1]))
+                fh.write("%s\t%.4f\t%d\n" % (node_name, node_info[0], node_info[1]))
     else:
         return result
 
@@ -511,9 +511,14 @@ def diffuse_single_seed(G, pos_seeds, neg_seeds, outdir):
         all_results[src_node_name] = result
     if outdir is not None:
         for src_node_name, result in all_results.iteritems():
-            with open(os.path.join(outdir, 'diffusion_profile.%s.tsv' % src_node_name), 'w') as fh:
+            with open(os.path.join(outdir, 'diffusion_profile_%s.tsv' % src_node_name), 'w') as fh:
                 for node_name, node_info in result.iteritems():
-                    fh.write("%s\t%.4f\t%d" % (node_name, node_info[0], node_info[1]))
+                    fh.write("%s\t%.4f\t%d\n" % (node_name, node_info[0], node_info[1]))
+        # for src_node_name, result in all_results.iteritems():
+        #     with open(os.path.join(outdir, 'diffusion_profile.%s.tsv' % src_node_name), 'w') as fh:
+        #         for node_name, node_info in result.iteritems():
+        #             fh.write("%s\t%.4f\t%d" % (node_name, node_info[0], node_info[1]))
+
     else:
         return all_results
 
@@ -552,15 +557,34 @@ def draw_modules(H, nodelist, notables=None, nodelabels=None):
     :return:
 
     """
-    pos = nx.graphviz_layout(H)
-    nx.draw_networkx_edges(H, pos, alpha=0.5, edge_color='y')
+    # pos = nx.graphviz_layout(H)
+    # nx.draw_networkx_edges(H, pos, alpha=0.5, edge_color='y')
+    # if notables is not None:  # if there exist seed genes
+    #     nx.draw_networkx_nodes(H, pos, nodelist=notables, node_color='white', node_size=300, alpha=0.7)
+    # nx.draw_networkx_nodes(H, pos, nodelist=nodelist, node_color='lightblue', node_size=100, alpha=0.5)
+    # if nodelabels is not None:
+    #     nx.draw_networkx_labels(H, pos, labels=nodelabels, font_size = 6, font_weight='bold')
+    # else:
+    #     nx.draw_networkx_labels(H, pos, font_size = 6, font_weight='bold')
+
+    # Test version
+    # problem in the following is if nodes don't exist in a particular version
+    # of the network, then this all breaks as it doesn't have a position
+    pos = nx.drawing.layout.spectral_layout(H)
+    #print(pos)
+    pp.figure()
+
+    nx.draw_networkx_edges(H, pos, alpha=0.75)
+    # may want to check here if all nodes that we want to visualize are in network
+    notables=['12833']
     if notables is not None:  # if there exist seed genes
-        nx.draw_networkx_nodes(H, pos, nodelist=notables, node_color='white', node_size=300, alpha=0.7)
+        nx.draw_networkx_nodes(H, pos, nodelist=notables, node_color='blue', node_size=300, alpha=0.5)
     nx.draw_networkx_nodes(H, pos, nodelist=nodelist, node_color='lightblue', node_size=100, alpha=0.5)
     if nodelabels is not None:
         nx.draw_networkx_labels(H, pos, labels=nodelabels, font_size = 6, font_weight='bold')
     else:
         nx.draw_networkx_labels(H, pos, font_size = 6, font_weight='bold')
+    pp.savefig('testnetwork.png')
 
 
 def plot_histogram(result, outfile='histogram.node_values.png'):
@@ -569,7 +593,8 @@ def plot_histogram(result, outfile='histogram.node_values.png'):
     #
     fig = pp.figure()
     n, bins, patches = pp.hist(result, bins=50, normed=False, rwidth=0.8, facecolor='gray', alpha=0.7)
-    fig.savefig(file=outfile, dpi=300)
+    #fig.savefig(file=outfile, dpi=300)
+    pp.savefig(outfile, dpi=300)
 
 
 def get_diffusion_profile_matrix(origins, targets, G, pickle_loc='.'):
