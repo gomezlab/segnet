@@ -120,7 +120,8 @@ def readin_network(netfile, idmap=None, beta=None, header=False):
     LOG.info("Loading the network from %s" % netfile)
 
     G = nx.Graph()
-    with gzip.open(netfile) as fh:
+    #with gzip.open(netfile) as fh:
+    with open(netfile) as fh:
         if header is True:
             fh.next()
         for curline in fh:
