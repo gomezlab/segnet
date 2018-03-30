@@ -146,6 +146,83 @@ def readin_network(netfile, idmap=None, beta=None, header=False):
 #
 # Functions for obtaining diffusion seeds
 #
+def retrieve_network_seeds(netfile, idmap=None, beta=None, header=False):
+    """
+    `readin_network` constructs networkx graph based upon input network file
+
+    :param netfile: the name of whole genome network file (tab-delimited string)
+    :param idmap: a conversion table (dictionary) of id's (dict)
+    :param beta: a parameter used in gaussian kernel (float)
+    :param header: whether the network file contains header or not (bool)
+    :return: a whole genome network (networkx graph)
+
+    :usage:
+        gfile = '../data/mouseNET/mouseNET_out_normal_10'
+        G = get_network(gfile, idmap=idmap, beta=1.0)
+
+    """
+    LOG.info("Loading the network from %s" % netfile)
+
+    G = dict()
+    key=0
+    #with gzip.open(netfile) as fh:
+    with open(netfile) as fh:
+        if header is True:
+            fh.next()
+        for curline in fh:
+            items = curline.rstrip().split("\t")
+            key=key+1
+            G[key] = items[0]
+   #         node2 = items[1]
+#            if node1 != node2:  # Not allowing self edges
+                # Convert node id whenever it's desired
+ #              if idmap is not None:
+#                    if idmap.has_key(node1):
+#                        node1 = idmap[node1]
+#                    if idmap.has_key(node2):
+#                        node2 = idmap[node2]
+#                if beta is not None:
+#                    edge_weight = math.exp(-beta * math.pow((1.0 - float(items[2])), 2)) + 1e-6
+#                else:
+#                    edge_weight = float(items[2])
+#                G.add_edge(node1, node2, {'weight': edge_weight})
+    return G
+
+def refine_network(netfile,pos_seeds,idmap=None,beta=None,header=False):
+    J=nx.Graph()
+    not_in_seeds={}
+    in_seeds={}
+    LOG.info("Loading the network from %s" % netfile)
+
+    seeds_inthe_net = retrieve_network_seeds(netfile, idmap)
+
+    #with gzip.open(netfile) as fh:
+    with open(netfile) as fh:
+        if header is True:
+            fh.next()
+        for curline in fh:
+            items = curline.rstrip().split("\t")
+            if items[0] in seeds_inthe_net.values():
+                node1 = items[0]
+                node2 = items[1]
+                if node1 != node2:  # Not allowing self edges
+                    # Convert node id whenever it's desired
+                    if idmap is not None:
+                        if idmap.has_key(node1):
+                            node1 = idmap[node1]
+                        if idmap.has_key(node2):
+                            node2 = idmap[node2]
+                    if beta is not None:
+                        edge_weight = math.exp(-beta * math.pow((1.0 - float(items[2])), 2)) + 1e-6
+                    else:
+                        edge_weight = float(items[2])
+                    J.add_edge(node1, node2, {'weight': edge_weight})
+       
+    return J
+
+#
+# Functions for obtaining diffusion seeds
+#
 
 def sort_genes_by_coordinate(gene_list, gene_locs):
     """
@@ -408,6 +485,7 @@ def construct_laplacian(G, indmap_seeds, nodeval_seeds, indmap_nonseeds):
             node2ind = indmap_nonseeds[node2]
 
         edge_weight = G[node1][node2]['weight']
+        
         # print edge_weight, node1, node1ind, '<=>', node2, node2ind, float(edge_weight)
 
         if not node1_is_seed and not node2_is_seed:
@@ -425,7 +503,7 @@ def construct_laplacian(G, indmap_seeds, nodeval_seeds, indmap_nonseeds):
     return X_M, L_U, minusB_T
 
 
-def solve_diffusion_eqn(X_M, L_U, minusB_T, tol=0.000001, maxiter=500000):
+def solve_diffusion_eqn(X_M, L_U, minusB_T, tol=0.01, maxiter=500000): #change tol to change number of steps
     """
     `solve_diffusion_eqn`
 
@@ -494,7 +572,7 @@ def diffuse_multi_seeds(G, pos_seeds, neg_seeds, outdir):
                 fh.write("%s\t%.4f\t%d\n" % (node_name, node_info[0], node_info[1]))
     else:
         return result
-
+   
 
 def diffuse_single_seed(G, pos_seeds, neg_seeds, outdir):
     """
@@ -547,7 +625,7 @@ def get_modules(nlist, G, cutoff=None, beta=None):
     return H
 
 
-def draw_modules(H, nodelist, notables=None, nodelabels=None):
+def draw_modules(H, nodelist, edgelist, notables, nodelabels, outdir):
     """
     draw_subnetwork
 
@@ -575,29 +653,65 @@ def draw_modules(H, nodelist, notables=None, nodelabels=None):
     #print(pos)
     pp.figure()
 
-    nx.draw_networkx_edges(H, pos, alpha=0.75)
     # may want to check here if all nodes that we want to visualize are in network
-    notables=['12833']
+    notables=nodelist
+    spring_pos = nx.spring_layout(H, dim=2, k=None, pos=None, fixed=None, iterations=50, weight='weight', scale=1.0, center=None)
+    
     if notables is not None:  # if there exist seed genes
-        nx.draw_networkx_nodes(H, pos, nodelist=notables, node_color='blue', node_size=300, alpha=0.5)
-    nx.draw_networkx_nodes(H, pos, nodelist=nodelist, node_color='lightblue', node_size=100, alpha=0.5)
+        nx.draw_networkx_nodes(H, spring_pos, nodelist=notables, node_color='red', node_size=400, alpha=0.5) #the outer circle of the nodes
+        nx.draw_networkx_nodes(H, spring_pos, nodelist=notables, node_color='lightblue', node_size=300, alpha=0.5) #the inner circle of the nodes
+        nx.draw_networkx_edges(H, spring_pos, H.edges(), alpha=0.75, edge_color='y')
     if nodelabels is not None:
-        nx.draw_networkx_labels(H, pos, labels=nodelabels, font_size = 6, font_weight='bold')
+        nx.draw_networkx_labels(H, spring_pos, labels=nodelabels, font_size = 6)
     else:
-        nx.draw_networkx_labels(H, pos, font_size = 6, font_weight='bold')
-    pp.savefig('testnetwork.png')
+        nx.draw_networkx_labels(H, spring_pos, labels=None, font_size = 6)
+    pp.savefig('test_testnetwork.png')
 
 
-def plot_histogram(result, outfile='histogram.node_values.png'):
+def plot_histogram_fdist(result, outfile='histogram.node_values.png'):
     #
-    # Plot the distribution of node values
-    #
+    # Plot the frequency distribution of node values / diffusion scores
+    # Decompose the nested "result" to v_dict = orderedDict[seed-node combination: diffusion score]
+       
     fig = pp.figure()
-    n, bins, patches = pp.hist(result, bins=50, normed=False, rwidth=0.8, facecolor='gray', alpha=0.7)
-    #fig.savefig(file=outfile, dpi=300)
+    v_dict=OrderedDict() 
+    
+    print('printing ----------------RESULT')
+    for k,v in result.iteritems():
+        for k_,v_ in v.iteritems():
+            key=k+str(k_)
+            v_dict[key]=v_[0]
+    print('printing ----------------HISTO')
+    pp.hist(x=v_dict.values(),bins=100,normed=False, rwidth=0.8, facecolor='red', alpha=0.7)
+    print(pp.hist(v_dict.values(),bins=100,normed=False, rwidth=0.8, facecolor='red', alpha=0.7))
     pp.savefig(outfile, dpi=300)
+    print (result)
 
 
+def plot_histogram_per_seed(result, outfile='histogram.node_values.png'):
+    #Try to plot distribution for single seeds
+    fig = pp.figure()
+    v_dict=OrderedDict()
+    node_dict = OrderedDict()
+    count_dict = OrderedDict()
+    max_dict = dict()
+    for k,v in result.iteritems():
+        for k_,v_ in v.iteritems():
+            if  v_[1] ==0: #Only takes out same-seed diffusion, not seedA-seedB
+                key= str(k_)
+                node_dict.setdefault(key, v_[0])
+                if key in node_dict.keys():
+                    node_dict[key]+=v_[0]
+    kmax=max(node_dict.values())
+    print(kmax)
+    for k,v in result.iteritems():
+        for k_,v_ in v.iteritems():
+            if k_==kmax:
+                max_dict[k]=v_[0]
+    print('tterar-------------')
+    print(result)
+    print(max_dict)
+    
 def get_diffusion_profile_matrix(origins, targets, G, pickle_loc='.'):
     """
     `get_diffusion_profile_matrix`
