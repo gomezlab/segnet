@@ -625,7 +625,7 @@ def get_modules(nlist, G, cutoff=None, beta=None):
     return H
 
 
-def draw_modules(H, nodelist, edgelist, notables, nodelabels, outdir):
+def draw_modules(H, nodelist, edgelist, outdir, nodelabels=None):
     """
     draw_subnetwork
 
@@ -658,8 +658,8 @@ def draw_modules(H, nodelist, edgelist, notables, nodelabels, outdir):
     spring_pos = nx.spring_layout(H, dim=2, k=None, pos=None, fixed=None, iterations=50, weight='weight', scale=1.0, center=None)
     
     if notables is not None:  # if there exist seed genes
-        nx.draw_networkx_nodes(H, spring_pos, nodelist=notables, node_color='red', node_size=400, alpha=0.5) #the outer circle of the nodes
-        nx.draw_networkx_nodes(H, spring_pos, nodelist=notables, node_color='lightblue', node_size=300, alpha=0.5) #the inner circle of the nodes
+        nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='red', node_size=400, alpha=0.5) #the outer circle of the nodes
+        nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='lightblue', node_size=300, alpha=0.5) #the inner circle of the nodes
         nx.draw_networkx_edges(H, spring_pos, H.edges(), alpha=0.75, edge_color='y')
     if nodelabels is not None:
         nx.draw_networkx_labels(H, spring_pos, labels=nodelabels, font_size = 6)
@@ -672,10 +672,8 @@ def plot_histogram_fdist(result, outfile='histogram.node_values.png'):
     #
     # Plot the frequency distribution of node values / diffusion scores
     # Decompose the nested "result" to v_dict = orderedDict[seed-node combination: diffusion score]
-       
     fig = pp.figure()
     v_dict=OrderedDict() 
-    
     print('printing ----------------RESULT')
     for k,v in result.iteritems():
         for k_,v_ in v.iteritems():

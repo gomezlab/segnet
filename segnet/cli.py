@@ -64,14 +64,15 @@ def diffuse(netfile, seedfile, multiseeds, gidfile, outdir, verbose):
         #print("after plot_histogram, now drawing network")
         segnet.draw_modules(network, network.nodes(), network.edges(),outdir)
         print("after draw_modules")
-        segnet.plot_histogram_fdist(output, outfile="test_histo.png")
-        segnet.plot_histogram_per_seed(output, outfile="test_histo_perseed.png")
+        #segnet.plot_histogram_fdist(output, outfile="test_histo.png")
+        #segnet.plot_histogram_per_seed(output, outfile="test_histo_perseed.png")
     else:
         print("before segnet.diffuse_single_seed in cli.py")
 
+        output = segnet.diffuse_single_seed(network, pos_seeds, neg_seeds, outdir=None)
         
         print("after diffuse_single_seed, printing output")
-        #print(output)     
+        print(output)     
         segnet.plot_histogram_fdist(output, outfile="test_histo.png")
         #segnet.plot_histogram_per_seed(output, outfile="test_histo_perseed.png")
         print("after plot_histogram, now drawing network")
