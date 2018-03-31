@@ -54,7 +54,7 @@ def diffuse(netfile, seedfile, multiseeds, gidfile, outdir, verbose):
     else:
         idmap = None
     pos_seeds, neg_seeds = segnet.prepare_seeds(seedfile)
-    network=segnet.refine_network(netfile,idmap)
+    network=segnet.readin_network(netfile,idmap)
     if multiseeds:
         output = segnet.diffuse_multi_seeds(network, pos_seeds, neg_seeds, outdir)
         #segnet.draw_modules(network, network.nodes(), output)
@@ -69,7 +69,7 @@ def diffuse(netfile, seedfile, multiseeds, gidfile, outdir, verbose):
     else:
         print("before segnet.diffuse_single_seed in cli.py")
 
-        output = segnet.diffuse_single_seed(network, pos_seeds, neg_seeds, outdir=None)
+        output = segnet.diffuse_single_seed(network, pos_seeds, neg_seeds, outdir)
         
         print("after diffuse_single_seed, printing output")
         print(output)     
@@ -84,7 +84,9 @@ def diffuse(netfile, seedfile, multiseeds, gidfile, outdir, verbose):
         #f.close()
         #segnet.plot_histogram(output)
     
-
+    origins,targets = segnet.origins_sand_targets(output)
+    mat = segnet.get_diffusion_profile_matrix(origins, targets, network, pickle_loc='.')
+    vote, vote_cnt, vote_val, vote_data = segnet.count_votes(mat,origins,targets,effective_vote_val=0.0)
 
 if __name__ == "__main__":
     main()

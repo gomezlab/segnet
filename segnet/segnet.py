@@ -10,7 +10,7 @@ import scipy
 import scipy.sparse
 from scipy.sparse.linalg import minres
 import matplotlib.pyplot as pp
-import cPickle
+import csv
 #import gzip
 
 
@@ -503,7 +503,7 @@ def construct_laplacian(G, indmap_seeds, nodeval_seeds, indmap_nonseeds):
     return X_M, L_U, minusB_T
 
 
-def solve_diffusion_eqn(X_M, L_U, minusB_T, tol=0.01, maxiter=500000): #change tol to change number of steps
+def solve_diffusion_eqn(X_M, L_U, minusB_T, tol=0.001, maxiter=500000): #change tol to change number of steps
     """
     `solve_diffusion_eqn`
 
@@ -567,9 +567,10 @@ def diffuse_multi_seeds(G, pos_seeds, neg_seeds, outdir):
     #
     result = get_diffusion_profile(indmap_seeds, nodeval_seeds, nonseeds, X_U)
     if outdir is not None:
-        with open(os.path.join(outdir, 'diffusion_profile.tsv'), 'w') as fh:
+        with open(os.path.join(outdir, 'diffusion_profile_%s.tsv'), 'w') as fh:
             for node_name, node_info in result.iteritems():
                 fh.write("%s\t%.4f\t%d\n" % (node_name, node_info[0], node_info[1]))
+        return result #added this line to have diffusion_profile saved as well as result returned
     else:
         return result
    
@@ -586,13 +587,14 @@ def diffuse_single_seed(G, pos_seeds, neg_seeds, outdir):
     """
     all_results = dict()
     for src_node_name, src_node_val in pos_seeds.iteritems():
-        result = diffuse_multi_seeds(G, {src_node_name: src_node_val}, neg_seeds, outdir=None)
+        result = diffuse_multi_seeds(G, {src_node_name: src_node_val}, neg_seeds, outdir)
         all_results[src_node_name] = result
     if outdir is not None:
         for src_node_name, result in all_results.iteritems():
-            with open(os.path.join(outdir, 'diffusion_profile_%s.tsv' % src_node_name), 'w') as fh:
+            with open(os.path.join(outdir, 'diffusion_profile_%s.tsv' % src_node_name), 'w') as fh: #'diffusion_profile_%s.tsv'
                 for node_name, node_info in result.iteritems():
                     fh.write("%s\t%.4f\t%d\n" % (node_name, node_info[0], node_info[1]))
+        return all_results #added this line to have diffusion_profile saved as well as all_results returned
         # for src_node_name, result in all_results.iteritems():
         #     with open(os.path.join(outdir, 'diffusion_profile.%s.tsv' % src_node_name), 'w') as fh:
         #         for node_name, node_info in result.iteritems():
@@ -721,19 +723,38 @@ def get_diffusion_profile_matrix(origins, targets, G, pickle_loc='.'):
     :return:
     """
     mat = np.zeros((len(origins), len(targets)))
+
     for i in xrange(len(origins)):
         ogname = origins[i]
         if G.has_node(ogname):
-            diffusion_profile = cPickle.load(open(os.path.join(pickle_loc, 'diffusion_%s.pickled' % ogname)))
-            for j in xrange(len(targets)):
-                tgname = targets[j]
-                if diffusion_profile.has_key(tgname):
-                    mat[i, j] = diffusion_profile[tgname][0]
-                else:
-                    print "%s does not exist in the diffusion field." % tgname
+            reader = csv.reader(open(os.path.join(pickle_loc, 'tests/diffusion_profile_%s.tsv' % ogname)))
+            diffusion_profile = dict()
+            for row in reader:
+                r = row[0].split('\t')
+                print(r)
+                diffusion_profile [r[0]] = [r[1],r[2]]
+                for j in xrange(len(targets)):
+                    tgname = targets[j]
+                    if diffusion_profile.has_key(tgname):
+                        mat[i, j] = diffusion_profile[tgname][0]
+                    else:
+                        print "%s does not exist in the diffusion field." % tgname
         else:
             print "%s does not exist in the network." % ogname
     return mat
+
+def origins_sand_targets (result):
+    origins = list()
+    targets = list()
+    for k,v in result.iteritems():
+        origins.append(k)
+    for k,v in result.iteritems():
+        for k_,v_ in v.iteritems():
+            if k_ not in targets:
+                targets.append(k_)
+                
+
+    return origins, targets
 
 
 def count_votes(mat, origins, targets, effective_vote_val=0.0):
