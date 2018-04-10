@@ -733,27 +733,27 @@ def get_diffusion_profile_matrix(origins, targets, G, pickle_loc='.'):
                 r = row[0].split('\t')
                 print(r)
                 diffusion_profile [r[0]] = [r[1],r[2]]
+                #print(diffusion_profile)
                 for j in xrange(len(targets)):
                     tgname = targets[j]
                     if diffusion_profile.has_key(tgname):
+                        #print(tgname)
                         mat[i, j] = diffusion_profile[tgname][0]
                     else:
-                        print "%s does not exist in the diffusion field." % tgname
+                        print "%s does not exist in the diffusion field." % tgname #not efficient output
         else:
             print "%s does not exist in the network." % ogname
     return mat
 
-def origins_sand_targets (result):
+def origins_and_targets (result):
     origins = list()
     targets = list()
     for k,v in result.iteritems():
         origins.append(k)
     for k,v in result.iteritems():
         for k_,v_ in v.iteritems():
-            if k_ not in targets:
+            if k_ not in targets and k_ not in origins: #targets exclude seeds
                 targets.append(k_)
-                
-
     return origins, targets
 
 
@@ -771,10 +771,11 @@ def count_votes(mat, origins, targets, effective_vote_val=0.0):
     # Counting the top voter only
     vote_cnt = np.zeros((1, len(targets))).flatten()
     vote_data = defaultdict(list)
-    vote = mat.argmax(axis=1)
+    vote = mat.argmax(axis=1) #index of the max element (coomparisons within one diffusion profile)
     vote_val = mat.max(axis=1)
     for i in xrange(len(vote)):
-        if effective_vote_val < vote_val[i] < 1.0:  # Assuming only the origin has the value of 1
+        if effective_vote_val < vote_val[i]:    # Assuming only the origin has the value of 1 (already excluded)
+                                                # some non-seeds have score over 1 as well
             # Record the name of the voters
             vote_data[targets[vote[i]]].append(origins[i])
             vote_cnt[vote[i]] += 1
