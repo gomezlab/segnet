@@ -70,9 +70,8 @@ def diffuse(netfile, seedfile, multiseeds, gidfile, outdir, verbose):
         print("before segnet.diffuse_single_seed in cli.py")
 
         output = segnet.diffuse_single_seed(network, pos_seeds, neg_seeds, outdir)
-        
-        print("after diffuse_single_seed, printing output")
-        print(output)     
+        #print("after diffuse_single_seed, printing output")
+        #print(output)     
         segnet.plot_histogram_fdist(output, outfile="test_histo.png")
         #segnet.plot_histogram_per_seed(output, outfile="test_histo_perseed.png")
         print("after plot_histogram, now drawing network")
@@ -84,9 +83,22 @@ def diffuse(netfile, seedfile, multiseeds, gidfile, outdir, verbose):
         #f.close()
         #segnet.plot_histogram(output)
     
-    origins,targets = segnet.origins_sand_targets(output)
+    origins,targets = segnet.origins_and_targets(output)
+    #print("origins and targets:")
+    #print(origins)
+    #print(targets)
     mat = segnet.get_diffusion_profile_matrix(origins, targets, network, pickle_loc='.')
+    #print ("mat:")
+    #print(mat)
     vote, vote_cnt, vote_val, vote_data = segnet.count_votes(mat,origins,targets,effective_vote_val=0.0)
-
+    print("vote - vote_cnt - vote_val - vote_data")
+    print(vote)
+    print(vote_cnt.shape)
+    print(vote_val.shape)
+    print(vote_data)
+    r,e = segnet.diffuse_multi_seeds(network, pos_seeds, neg_seeds, outdir)
+    #segnet.eigenval(e, outfile="test_eigenvalues_dist.png")
+    segnet.vote_visual(network, vote_data, outfile="vote_network.png")
+    segnet.spectral_clustering(network, output, origins, targets, pickle_loc = '.')
 if __name__ == "__main__":
     main()

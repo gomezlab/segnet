@@ -13,6 +13,8 @@ import matplotlib.pyplot as pp
 import csv
 #import gzip
 
+import pandas as pd
+import scipy.sparse as sps
 
 LOG = utils.get_logger()
 
@@ -187,38 +189,6 @@ def retrieve_network_seeds(netfile, idmap=None, beta=None, header=False):
 #                    edge_weight = float(items[2])
 #                G.add_edge(node1, node2, {'weight': edge_weight})
     return G
-
-def refine_network(netfile,pos_seeds,idmap=None,beta=None,header=False):
-    J=nx.Graph()
-    not_in_seeds={}
-    in_seeds={}
-    LOG.info("Loading the network from %s" % netfile)
-
-    seeds_inthe_net = retrieve_network_seeds(netfile, idmap)
-
-    #with gzip.open(netfile) as fh:
-    with open(netfile) as fh:
-        if header is True:
-            fh.next()
-        for curline in fh:
-            items = curline.rstrip().split("\t")
-            if items[0] in seeds_inthe_net.values():
-                node1 = items[0]
-                node2 = items[1]
-                if node1 != node2:  # Not allowing self edges
-                    # Convert node id whenever it's desired
-                    if idmap is not None:
-                        if idmap.has_key(node1):
-                            node1 = idmap[node1]
-                        if idmap.has_key(node2):
-                            node2 = idmap[node2]
-                    if beta is not None:
-                        edge_weight = math.exp(-beta * math.pow((1.0 - float(items[2])), 2)) + 1e-6
-                    else:
-                        edge_weight = float(items[2])
-                    J.add_edge(node1, node2, {'weight': edge_weight})
-       
-    return J
 
 #
 # Functions for obtaining diffusion seeds
@@ -484,7 +454,7 @@ def construct_laplacian(G, indmap_seeds, nodeval_seeds, indmap_nonseeds):
             node2_is_seed = False
             node2ind = indmap_nonseeds[node2]
 
-        edge_weight = G[node1][node2]['weight']
+        edge_weight = G[node1][node2]['weight'] #should be the W matrix
         
         # print edge_weight, node1, node1ind, '<=>', node2, node2ind, float(edge_weight)
 
@@ -499,11 +469,19 @@ def construct_laplacian(G, indmap_seeds, nodeval_seeds, indmap_nonseeds):
         if not node1_is_seed and node2_is_seed:
             L_U[node1ind, node1ind] += edge_weight
             minusB_T[node1ind, node2ind] = edge_weight
+
     L_U.tocsr()
+    #print("printing G the similarity graph")
+    #print(list(G.edges_iter()))
+    
     return X_M, L_U, minusB_T
+#X_M: just the seed values 1*1, per seed
+#L_U: keys are node-node, values are +/- edge weights
+#minusB_T: the original seed-node values column vector
 
 
-def solve_diffusion_eqn(X_M, L_U, minusB_T, tol=0.001, maxiter=500000): #change tol to change number of steps
+def solve_diffusion_eqn(X_M, L_U, minusB_T, tol=0.00001, maxiter=500000): #change tol to change number of steps
+    #tol is just a range of telling if the diffusion needs to go further
     """
     `solve_diffusion_eqn`
 
@@ -515,10 +493,43 @@ def solve_diffusion_eqn(X_M, L_U, minusB_T, tol=0.001, maxiter=500000): #change 
     :return:
 
     """
+    a = OrderedDict()
     b = scipy.dot(minusB_T, X_M).flatten()
     X_U, info = scipy.sparse.linalg.minres(L_U, b, tol=tol, maxiter=maxiter)
-    return X_U
+    #print("X_U")
+    #print(X_U)
+    L = L_U.toarray()
+    n, m = L.shape
+    diags = L.sum(axis=1)
+    D = sps.spdiags(diags.flatten(), [0], m, n, format='csr')
+    S = D - L
+    P = D * S * D
+    eigval, eigvec = np.linalg.eig(P)
 
+    print("check X_U")
+    print(X_U)
+    print(X_U.shape)
+    
+    #print("similarity matrix S")
+    #print(S)
+    #print("laplacian matrix L")
+    #print(L)
+    #print("doubly stochastic symmetric matrix P")
+    #print(P)
+    #X_M_array = X_M.toarray()
+    #L_U_array = L_U.toarray()
+    #print("L_U........................")
+    #print(L_U_array[np.nonzero(L_U_array)])
+    #print("minusB_T,,,,,,,,,,,,,,,,,,,")
+    #print(minusB_T)
+    #print("shapes:::::::::::::::::::::")
+    #print(X_M.shape)
+    #print(L_U_array.shape)
+    #print(minusB_T.shape)
+    #print(X_U)
+    return X_U, P, eigval # X_U: row vectors - diffusion scores, per seed
+
+    #L_U is actually the similarity matrix? def not the graph laplacian bc it is not postive semi-def
 
 def get_diffusion_profile(indmap_allseeds, nodeval_allseeds, nonseeds, X_U):
     """
@@ -541,7 +552,8 @@ def get_diffusion_profile(indmap_allseeds, nodeval_allseeds, nonseeds, X_U):
 
     for i in xrange(len(X_U)):
         result[nonseeds[i]] = [X_U[i], 0]
-    return result
+    return result #ordered dictionary: diffusion profile
+                  #OrderedDict([('A', [1.0, 1]), ('1', [0.9921955980991151, 0])])
 
 
 def diffuse_multi_seeds(G, pos_seeds, neg_seeds, outdir):
@@ -560,8 +572,12 @@ def diffuse_multi_seeds(G, pos_seeds, neg_seeds, outdir):
     nonseeds = indmap_nonseeds.keys()
 
     X_M, L_U, minusB_T = construct_laplacian(G, indmap_seeds, nodeval_seeds, indmap_nonseeds)
-    X_U = solve_diffusion_eqn(X_M, L_U, minusB_T)
+    
+    X_U, P, eigval = solve_diffusion_eqn(X_M, L_U, minusB_T)
+    #print("=====+++++=~~~~~~===")
 
+    
+    #print(eigval)
     #
     # Report the result
     #
@@ -570,10 +586,10 @@ def diffuse_multi_seeds(G, pos_seeds, neg_seeds, outdir):
         with open(os.path.join(outdir, 'diffusion_profile_%s.tsv'), 'w') as fh:
             for node_name, node_info in result.iteritems():
                 fh.write("%s\t%.4f\t%d\n" % (node_name, node_info[0], node_info[1]))
-        return result #added this line to have diffusion_profile saved as well as result returned
+        return result, eigval #added this line to have diffusion_profile saved as well as result returned
     else:
-        return result
-   
+        return result, eigval
+
 
 def diffuse_single_seed(G, pos_seeds, neg_seeds, outdir):
     """
@@ -587,7 +603,7 @@ def diffuse_single_seed(G, pos_seeds, neg_seeds, outdir):
     """
     all_results = dict()
     for src_node_name, src_node_val in pos_seeds.iteritems():
-        result = diffuse_multi_seeds(G, {src_node_name: src_node_val}, neg_seeds, outdir)
+        result, eigval = diffuse_multi_seeds(G, {src_node_name: src_node_val}, neg_seeds, outdir)
         all_results[src_node_name] = result
     if outdir is not None:
         for src_node_name, result in all_results.iteritems():
@@ -683,34 +699,10 @@ def plot_histogram_fdist(result, outfile='histogram.node_values.png'):
             v_dict[key]=v_[0]
     print('printing ----------------HISTO')
     pp.hist(x=v_dict.values(),bins=100,normed=False, rwidth=0.8, facecolor='red', alpha=0.7)
-    print(pp.hist(v_dict.values(),bins=100,normed=False, rwidth=0.8, facecolor='red', alpha=0.7))
+    #print(pp.hist(v_dict.values(),bins=100,normed=False, rwidth=0.8, facecolor='red', alpha=0.7))
     pp.savefig(outfile, dpi=300)
-    print (result)
+    #print (result)
 
-
-def plot_histogram_per_seed(result, outfile='histogram.node_values.png'):
-    #Try to plot distribution for single seeds
-    fig = pp.figure()
-    v_dict=OrderedDict()
-    node_dict = OrderedDict()
-    count_dict = OrderedDict()
-    max_dict = dict()
-    for k,v in result.iteritems():
-        for k_,v_ in v.iteritems():
-            if  v_[1] ==0: #Only takes out same-seed diffusion, not seedA-seedB
-                key= str(k_)
-                node_dict.setdefault(key, v_[0])
-                if key in node_dict.keys():
-                    node_dict[key]+=v_[0]
-    kmax=max(node_dict.values())
-    print(kmax)
-    for k,v in result.iteritems():
-        for k_,v_ in v.iteritems():
-            if k_==kmax:
-                max_dict[k]=v_[0]
-    print('tterar-------------')
-    print(result)
-    print(max_dict)
     
 def get_diffusion_profile_matrix(origins, targets, G, pickle_loc='.'):
     """
@@ -731,7 +723,6 @@ def get_diffusion_profile_matrix(origins, targets, G, pickle_loc='.'):
             diffusion_profile = dict()
             for row in reader:
                 r = row[0].split('\t')
-                print(r)
                 diffusion_profile [r[0]] = [r[1],r[2]]
                 #print(diffusion_profile)
                 for j in xrange(len(targets)):
@@ -739,13 +730,13 @@ def get_diffusion_profile_matrix(origins, targets, G, pickle_loc='.'):
                     if diffusion_profile.has_key(tgname):
                         #print(tgname)
                         mat[i, j] = diffusion_profile[tgname][0]
-                    else:
-                        print "%s does not exist in the diffusion field." % tgname #not efficient output
+                    #else:
+                        #print "%s does not exist in the diffusion field." % tgname #not efficient output
         else:
             print "%s does not exist in the network." % ogname
     return mat
 
-def origins_and_targets (result):
+def origins_and_targets(result):
     origins = list()
     targets = list()
     for k,v in result.iteritems():
@@ -771,7 +762,7 @@ def count_votes(mat, origins, targets, effective_vote_val=0.0):
     # Counting the top voter only
     vote_cnt = np.zeros((1, len(targets))).flatten()
     vote_data = defaultdict(list)
-    vote = mat.argmax(axis=1) #index of the max element (coomparisons within one diffusion profile)
+    vote = mat.argmax(axis=1) #index of the max element (comparisons within one diffusion profile)
     vote_val = mat.max(axis=1)
     for i in xrange(len(vote)):
         if effective_vote_val < vote_val[i]:    # Assuming only the origin has the value of 1 (already excluded)
@@ -781,7 +772,94 @@ def count_votes(mat, origins, targets, effective_vote_val=0.0):
             vote_cnt[vote[i]] += 1
     vote_data = dict(vote_data)
     return vote, vote_cnt, vote_val, vote_data
+    # vote_data =  {'70110': ['57438', '13555', '228005', '107435', '229279', '11909', '20823', '16403', '13669', '13641', '13642'],
+        #'19084': ['13627'], '53895': ['13629'], '93747': ['13653', '228033'], '13200': ['70231'], '54396': ['71586']}]
+    #i.e. seeds vote to the nodes
 
 
-def clustering():
-    raise NotImplementedError("Stochastic clustering is coming soon.")
+
+def vote_visual (G, vote_data, outfile = 'vote_network.png', beta = None, cutoff = None, nodelabels = None):
+    nodelist = list()
+    for k,v in vote_data.iteritems():
+        nodelist.append(k)
+        for v_ in v:
+            nodelist.append(v_)
+    H = nx.Graph()
+    #print(nodelist)
+    H.add_nodes_from(nodelist)
+    for votee, voters in vote_data.iteritems():
+        for voter in voters:
+            if votee is not voter and not H.has_edge(votee, voter):
+                H.add_edge(votee, voter, {'weight':1}) # = unweighted edges. Not sure what should the weighted edges be?
+
+
+    #print(H.edges())                  
+    pos = nx.drawing.layout.spectral_layout(H)
+    pp.figure()
+    nodelist = H.nodes()
+    notables=nodelist
+    spring_pos = nx.spring_layout(H, dim=2, k=None, pos=None, fixed=None, iterations=50, weight='weight', scale=1.0, center=None)
+    
+    if notables is not None:  # if there exist seed genes
+        nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='red', node_size=400, alpha=0.5) #the outer circle of the nodes
+        nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='lightblue', node_size=300, alpha=0.5) #the inner circle of the nodes
+        nx.draw_networkx_edges(H, spring_pos, H.edges(), alpha=0.75, edge_color='y')
+    if nodelabels is not None:
+        nx.draw_networkx_labels(H, spring_pos, labels=nodelabels, font_size = 6)
+    else:
+        nx.draw_networkx_labels(H, spring_pos, labels=None, font_size = 6)
+    pp.savefig('vote_network.png')
+
+
+# uses result from the diffusion output after single_seed, which is an ordered dictionary seed: node, {score, seed boolean}
+#def spectral_clustering(G,result,indmap_seeds, nodeval_seeds, indmap_nonseeds, origins, targets):
+def spectral_clustering(G, result, origins, targets, pickle_loc='.'):
+
+    """
+    `spectral_clustering` create weighted Laplacian (L_U and minusB_T separately)
+
+    :param G:
+    :param result:
+    :param indmap_seeds:
+    :param nodeval_seeds:
+    :param indmap_nonseeds:
+    :return:
+
+    TODO:
+        L = D - W
+        use result to create W matrix and D matrix
+        get L
+        confirm L is positive semi-definite (symm. obv.)
+        comput eigenvalues and eigenvectors of L
+        cluster eigenvalues using k-means
+    """
+
+    nodes = origins + targets
+    W = scipy.zeros([len(nodes), len(nodes)])
+    O = scipy.ones([len(nodes), len(nodes)])
+    for i in xrange(len(nodes)):
+        if G.has_node(nodes[i]):
+            
+            file = os.path.join(pickle_loc, 'tests/diffusion_profile_%s.tsv' % nodes[i])
+            if os.path.isfile(file):
+                reader = csv.reader(open(file))
+                for row in reader:
+                    r = row[0].split('\t')
+                    j = nodes.index(r[0])
+                    W [i,j] = r[1]
+    for i in xrange(len(origins)):
+        for j in xrange(len(origins)):
+            W[i,j] = (W[i,j] + W[j,i])/2
+            W[j,i] = 0
+
+#    for i in xrange(len(nodes)):
+#        for j in xrange(len(nodes)):
+#            W[j,i] = 0
+
+
+ #   D = W * O
+#    P = np.linalg.inv(D) * W
+    print("goddamn it please let this be the W matrix")
+    print(W)
+    print(D)
+    print(P)
