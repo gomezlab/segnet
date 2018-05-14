@@ -630,11 +630,11 @@ def draw_modules(H, nodelist, edgelist, outdir, nodelabels=None):
     spring_pos = nx.spring_layout(H, dim=2, k=0.2, pos=None, fixed=None, iterations=50, weight='weight', scale=1.0, center=None)
     
     # if notables is not None:  # if there exist seed genes
-    nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='red', node_size=20, alpha=0.3) #the outer circle of the nodes
+    nx.draw_networkx_nodes(H, pos=spring_pos, nodelist=nodelist, node_color='red', node_size=20, alpha=0.3) #the outer circle of the nodes
 #    nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='lightblue', node_size=300, alpha=0.5) #the inner circle of the nodes
-    nx.draw_networkx_edges(H, spring_pos, edgelist=edgelist, alpha=1.0, edge_color='y')
+    nx.draw_networkx_edges(H, pos=spring_pos, edgelist=edgelist, alpha=1.0, edge_color=range(len(edgelist)), width = 0.5, arrows=False, ax=None, edge_cmap=pp.cm.Blues)
     if nodelabels is not None:
-        nx.draw_networkx_labels(H, spring_pos, labels=nodelabels, font_size = 5)
+        nx.draw_networkx_labels(H, pos=spring_pos, labels=nodelabels, font_size = 5)
    # else:
 #        nx.draw_networkx_labels(H, spring_pos, labels=None, font_size = 5)
     pp.savefig('test_testnetwork.png')
@@ -761,7 +761,7 @@ def vote_visual (G, vote_data, outfile = 'vote_network.png', beta = None, cutoff
     if notables is not None:  # if there exist seed genes
         nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='red', node_size=400, alpha=0.5) #the outer circle of the nodes
         nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='lightblue', node_size=300, alpha=0.5) #the inner circle of the nodes
-        nx.draw_networkx_edges(H, spring_pos, H.edges(), alpha=0.75, edge_color='y')
+        nx.draw_networkx_edges(H, spring_pos, H.edges(), alpha=0.75, edge_color=range(len(H.edges())), edge_cmap=pp.cm.Blues, arrows=False)
     if nodelabels is not None:
         nx.draw_networkx_labels(H, spring_pos, labels=nodelabels, font_size = 6)
     else:
