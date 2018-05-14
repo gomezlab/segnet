@@ -121,7 +121,7 @@ def readin_network(netfile, idmap=None, beta=None, header=False):
     """
     LOG.info("Loading the network from %s" % netfile)
 
-    G = nx.Graph()
+    G = nx.DiGraph()
     #with gzip.open(netfile) as fh:
     with open(netfile) as fh:
         if header is True:
@@ -144,51 +144,6 @@ def readin_network(netfile, idmap=None, beta=None, header=False):
                 G.add_edge(node1, node2, {'weight': edge_weight})
     return G
 
-
-#
-# Functions for obtaining diffusion seeds
-#
-def retrieve_network_seeds(netfile, idmap=None, beta=None, header=False):
-    """
-    `readin_network` constructs networkx graph based upon input network file
-
-    :param netfile: the name of whole genome network file (tab-delimited string)
-    :param idmap: a conversion table (dictionary) of id's (dict)
-    :param beta: a parameter used in gaussian kernel (float)
-    :param header: whether the network file contains header or not (bool)
-    :return: a whole genome network (networkx graph)
-
-    :usage:
-        gfile = '../data/mouseNET/mouseNET_out_normal_10'
-        G = get_network(gfile, idmap=idmap, beta=1.0)
-
-    """
-    LOG.info("Loading the network from %s" % netfile)
-
-    G = dict()
-    key=0
-    #with gzip.open(netfile) as fh:
-    with open(netfile) as fh:
-        if header is True:
-            fh.next()
-        for curline in fh:
-            items = curline.rstrip().split("\t")
-            key=key+1
-            G[key] = items[0]
-   #         node2 = items[1]
-#            if node1 != node2:  # Not allowing self edges
-                # Convert node id whenever it's desired
- #              if idmap is not None:
-#                    if idmap.has_key(node1):
-#                        node1 = idmap[node1]
-#                    if idmap.has_key(node2):
-#                        node2 = idmap[node2]
-#                if beta is not None:
-#                    edge_weight = math.exp(-beta * math.pow((1.0 - float(items[2])), 2)) + 1e-6
-#                else:
-#                    edge_weight = float(items[2])
-#                G.add_edge(node1, node2, {'weight': edge_weight})
-    return G
 
 #
 # Functions for obtaining diffusion seeds
@@ -496,8 +451,7 @@ def solve_diffusion_eqn(X_M, L_U, minusB_T, tol=0.00001, maxiter=500000): #chang
     a = OrderedDict()
     b = scipy.dot(minusB_T, X_M).flatten()
     X_U, info = scipy.sparse.linalg.minres(L_U, b, tol=tol, maxiter=maxiter)
-    #print("X_U")
-    #print(X_U)
+
     L = L_U.toarray()
     n, m = L.shape
     diags = L.sum(axis=1)
@@ -506,9 +460,9 @@ def solve_diffusion_eqn(X_M, L_U, minusB_T, tol=0.00001, maxiter=500000): #chang
     P = D * S * D
     eigval, eigvec = np.linalg.eig(P)
 
-    print("check X_U")
-    print(X_U)
-    print(X_U.shape)
+    #print("check X_U")
+    #print(X_U)
+    #print(X_U.shape)
     
     #print("similarity matrix S")
     #print(S)
@@ -630,7 +584,7 @@ def get_modules(nlist, G, cutoff=None, beta=None):
     --------------
 
     """
-    H = nx.Graph()
+    H = nx.DiGraph() #changed from Graph() to DiGraph()
     H.add_nodes_from(nlist)
     for nid1 in nlist:
         for nid2 in nlist:
@@ -667,22 +621,22 @@ def draw_modules(H, nodelist, edgelist, outdir, nodelabels=None):
     # Test version
     # problem in the following is if nodes don't exist in a particular version
     # of the network, then this all breaks as it doesn't have a position
-    pos = nx.drawing.layout.spectral_layout(H)
-    #print(pos)
+    
+    # spectral_pos = nx.drawing.layout.spectral_layout(H, weight='weight', dim=2) #spectral layout didnt work; too many nodes (>500)
     pp.figure()
 
     # may want to check here if all nodes that we want to visualize are in network
     notables=nodelist
-    spring_pos = nx.spring_layout(H, dim=2, k=None, pos=None, fixed=None, iterations=50, weight='weight', scale=1.0, center=None)
+    spring_pos = nx.spring_layout(H, dim=2, k=0.2, pos=None, fixed=None, iterations=50, weight='weight', scale=1.0, center=None)
     
-    if notables is not None:  # if there exist seed genes
-        nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='red', node_size=400, alpha=0.5) #the outer circle of the nodes
-        nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='lightblue', node_size=300, alpha=0.5) #the inner circle of the nodes
-        nx.draw_networkx_edges(H, spring_pos, H.edges(), alpha=0.75, edge_color='y')
+    # if notables is not None:  # if there exist seed genes
+    nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='red', node_size=20, alpha=0.3) #the outer circle of the nodes
+#    nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='lightblue', node_size=300, alpha=0.5) #the inner circle of the nodes
+    nx.draw_networkx_edges(H, spring_pos, edgelist=edgelist, alpha=1.0, edge_color='y')
     if nodelabels is not None:
-        nx.draw_networkx_labels(H, spring_pos, labels=nodelabels, font_size = 6)
-    else:
-        nx.draw_networkx_labels(H, spring_pos, labels=None, font_size = 6)
+        nx.draw_networkx_labels(H, spring_pos, labels=nodelabels, font_size = 5)
+   # else:
+#        nx.draw_networkx_labels(H, spring_pos, labels=None, font_size = 5)
     pp.savefig('test_testnetwork.png')
 
 
@@ -762,12 +716,16 @@ def count_votes(mat, origins, targets, effective_vote_val=0.0):
     # Counting the top voter only
     vote_cnt = np.zeros((1, len(targets))).flatten()
     vote_data = defaultdict(list)
+    vote_score = defaultdict(list) #prob can be used in visualization (stacked weighted distribution graph)
+                                   #after knowing the gene IDs / the properties
     vote = mat.argmax(axis=1) #index of the max element (comparisons within one diffusion profile)
-    vote_val = mat.max(axis=1)
+    vote_val = mat.max(axis=1) # axis = 1 --> max diffusion score per target
     for i in xrange(len(vote)):
         if effective_vote_val < vote_val[i]:    # Assuming only the origin has the value of 1 (already excluded)
                                                 # some non-seeds have score over 1 as well
             # Record the name of the voters
+            score = mat[i, vote[i]]
+            vote_score[targets[vote[i]]].append([origins[i],score])
             vote_data[targets[vote[i]]].append(origins[i])
             vote_cnt[vote[i]] += 1
     vote_data = dict(vote_data)
@@ -784,7 +742,7 @@ def vote_visual (G, vote_data, outfile = 'vote_network.png', beta = None, cutoff
         nodelist.append(k)
         for v_ in v:
             nodelist.append(v_)
-    H = nx.Graph()
+    H = nx.DiGraph() #DiGraph() instead of Graph()
     #print(nodelist)
     H.add_nodes_from(nodelist)
     for votee, voters in vote_data.iteritems():

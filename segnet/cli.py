@@ -75,7 +75,7 @@ def diffuse(netfile, seedfile, multiseeds, gidfile, outdir, verbose):
         segnet.plot_histogram_fdist(output, outfile="test_histo.png")
         #segnet.plot_histogram_per_seed(output, outfile="test_histo_perseed.png")
         print("after plot_histogram, now drawing network")
-        segnet.draw_modules(network, network.nodes(), network.edges(), outdir)
+        segnet.draw_modules(network, network.nodes(), network.edges(), outdir, nodelabels=None)
         print("after draw_modules")
 
         #f = open(os.path.join(outdir, 'results.pickled', 'wb')
@@ -96,9 +96,10 @@ def diffuse(netfile, seedfile, multiseeds, gidfile, outdir, verbose):
     print(vote_cnt.shape)
     print(vote_val.shape)
     print(vote_data)
-    r,e = segnet.diffuse_multi_seeds(network, pos_seeds, neg_seeds, outdir)
+#    r,e = segnet.diffuse_multi_seeds(network, pos_seeds, neg_seeds, outdir)
     #segnet.eigenval(e, outfile="test_eigenvalues_dist.png")
     segnet.vote_visual(network, vote_data, outfile="vote_network.png")
-    segnet.spectral_clustering(network, output, origins, targets, pickle_loc = '.')
+    
+#    segnet.spectral_clustering(network, output, origins, targets, pickle_loc = '.')
 if __name__ == "__main__":
     main()
