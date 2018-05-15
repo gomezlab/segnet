@@ -697,6 +697,7 @@ def origins_and_targets(result):
         origins.append(k)
     for k,v in result.iteritems():
         for k_,v_ in v.iteritems():
+            #if k_ not in targets: #targets include seeds
             if k_ not in targets and k_ not in origins: #targets exclude seeds
                 targets.append(k_)
     return origins, targets
@@ -724,8 +725,8 @@ def count_votes(mat, origins, targets, effective_vote_val=0.0):
         if effective_vote_val < vote_val[i]:    # Assuming only the origin has the value of 1 (already excluded)
                                                 # some non-seeds have score over 1 as well
             # Record the name of the voters
-            score = mat[i, vote[i]]
-            vote_score[targets[vote[i]]].append([origins[i],score])
+            # score = mat[i, vote[i]]
+            # vote_score[targets[vote[i]]].append([origins[i],score])
             vote_data[targets[vote[i]]].append(origins[i])
             vote_cnt[vote[i]] += 1
     vote_data = dict(vote_data)
@@ -750,7 +751,6 @@ def vote_visual (G, vote_data, outfile = 'vote_network.png', beta = None, cutoff
             if votee is not voter and not H.has_edge(votee, voter):
                 H.add_edge(votee, voter, {'weight':1}) # = unweighted edges. Not sure what should the weighted edges be?
 
-
     #print(H.edges())                  
     pos = nx.drawing.layout.spectral_layout(H)
     pp.figure()
@@ -761,12 +761,23 @@ def vote_visual (G, vote_data, outfile = 'vote_network.png', beta = None, cutoff
     if notables is not None:  # if there exist seed genes
         nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='red', node_size=400, alpha=0.5) #the outer circle of the nodes
         nx.draw_networkx_nodes(H, spring_pos, nodelist=nodelist, node_color='lightblue', node_size=300, alpha=0.5) #the inner circle of the nodes
-        nx.draw_networkx_edges(H, spring_pos, H.edges(), alpha=0.75, edge_color=range(len(H.edges())), edge_cmap=pp.cm.Blues, arrows=False)
+        nx.draw_networkx_edges(H, spring_pos, H.edges(), alpha=0.75, edge_color='k',  arrows=False)
     if nodelabels is not None:
         nx.draw_networkx_labels(H, spring_pos, labels=nodelabels, font_size = 6)
     else:
         nx.draw_networkx_labels(H, spring_pos, labels=None, font_size = 6)
     pp.savefig('vote_network.png')
+
+
+def vote_dist (targets, vote_cnt, vote, outfile = 'vote_distribution.png'):
+    nonzero_targets = list()
+    for x in xrange(len(vote_cnt)):
+        if not targets[x] in nonzero_targets and not vote_cnt[x] ==0:
+            nonzero_targets.append(targets[x])
+    fig = pp.figure()
+    pp.bar(x=np.arange(len(np.nonzero(vote_cnt)[0])), height = vote_cnt[np.nonzero(vote_cnt)[0]], align='center')
+    pp.xticks(np.arange(len(np.nonzero(vote_cnt)[0])), nonzero_targets, rotation='vertical', size=8)
+    pp.savefig(outfile, dpi=300)
 
 
 # uses result from the diffusion output after single_seed, which is an ordered dictionary seed: node, {score, seed boolean}
