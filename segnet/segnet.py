@@ -13,6 +13,7 @@ import matplotlib.pyplot as pp
 import csv
 import pickle
 #import gzip
+import json
 
 import pandas as pd
 import scipy.sparse as sps
@@ -427,8 +428,7 @@ def construct_laplacian(G, indmap_seeds, nodeval_seeds, indmap_nonseeds):
             minusB_T[node1ind, node2ind] = edge_weight
 
     L_U.tocsr()
-    #print("printing G the similarity graph")
-    #print(list(G.edges_iter()))
+
     
     return X_M, L_U, minusB_T
 #X_M: just the seed values 1*1, per seed
@@ -436,7 +436,7 @@ def construct_laplacian(G, indmap_seeds, nodeval_seeds, indmap_nonseeds):
 #minusB_T: the original seed-node values column vector
 
 
-def solve_diffusion_eqn(X_M, L_U, minusB_T, tol=0.00001, maxiter=500000): #change tol to change number of steps
+def solve_diffusion_eqn(X_M, L_U, minusB_T, tol=0.000001, maxiter=100): #change tol to change number of steps
     #tol is just a range of telling if the diffusion needs to go further
     """
     `solve_diffusion_eqn`
@@ -505,7 +505,7 @@ def diffuse_multi_seeds(G, pos_seeds, neg_seeds, outdir):
     #
     result = get_diffusion_profile(indmap_seeds, nodeval_seeds, nonseeds, X_U)
     if outdir is not None:
-        with open(os.path.join(outdir, 'diffusion_profile_%s.tsv'), 'w') as fh:
+        with open(os.path.join(outdir, '153171_diffusion_profile_%s.tsv'), 'w') as fh:
             for node_name, node_info in result.iteritems():
                 fh.write("%s\t%.4f\t%d\n" % (node_name, node_info[0], node_info[1]))
         return result #added this line to have diffusion_profile saved as well as result returned
@@ -513,7 +513,7 @@ def diffuse_multi_seeds(G, pos_seeds, neg_seeds, outdir):
         return result
 
 
-def diffuse_single_seed(G, pos_seeds, neg_seeds, outdir):
+def diffuse_single_seed(G, pos_seeds, neg_seeds, outdir, pos_seeds2):
     """
     `diffuse_single_seed`
 
@@ -523,16 +523,29 @@ def diffuse_single_seed(G, pos_seeds, neg_seeds, outdir):
     :param outdir:
     :return:
     """
+
     all_results = dict()
+    link_results = OrderedDict()
+ #   f_link =  open('link_results_tolE6_maxiter100_153171.tsv', 'w')
+    f_all = open('all_results_tolE6_maxiter100_153171.tsv', 'w')
     for src_node_name, src_node_val in pos_seeds.iteritems():
         result = diffuse_multi_seeds(G, {src_node_name: src_node_val}, neg_seeds, outdir)
         all_results[src_node_name] = result
+        all_results
+        for node_name, node_info in result.iteritems():
+            if node_name in pos_seeds2.keys():
+                link_results.update({src_node_name:[node_name,node_info[0]]})               
+ #               f.write("%s\t%s\t%d\n" % (src_node_name,node_name,node_info[0]))
     if outdir is not None:
         for src_node_name, result in all_results.iteritems():
-            with open(os.path.join(outdir, 'diffusion_profile_%s.tsv' % src_node_name), 'w') as fh: #'diffusion_profile_%s.tsv'
+            with open(os.path.join(outdir, '153171_diffusion_profile_%s.tsv' % src_node_name), 'w') as fh: #'diffusion_profile_%s.tsv'
                 for node_name, node_info in result.iteritems():
                     fh.write("%s\t%.4f\t%d\n" % (node_name, node_info[0], node_info[1]))
-        return all_results #added this line to have diffusion_profile saved as well as all_results returned
+       # print link_results
+ #       f_link.write(json.dumps(link_results)) # can be used to generate heat map
+        f_all.write(json.dumps(all_results))
+        return link_results, all_results
+        # return all_results #added this line to have diffusion_profile saved as well as all_results returned
         # for src_node_name, result in all_results.iteritems():
         #     with open(os.path.join(outdir, 'diffusion_profile.%s.tsv' % src_node_name), 'w') as fh:
         #         for node_name, node_info in result.iteritems():
@@ -641,7 +654,7 @@ def get_diffusion_profile_matrix(origins, targets, G):
     for i in xrange(len(origins)):
         ogname = origins[i]
         if G.has_node(ogname):
-            reader = csv.reader(open(os.path.join('tests/diffusion_profile_%s.tsv' % ogname)))
+            reader = csv.reader(open(os.path.join('tests/153171_diffusion_profile_%s.tsv' % ogname)))
             diffusion_profile = dict()
             for row in reader:
                 r = row[0].split('\t')
@@ -658,16 +671,21 @@ def get_diffusion_profile_matrix(origins, targets, G):
             print "%s does not exist in the network." % ogname
     return mat
 
-def origins_and_targets(result):
+def origins_and_targets(result,pos_seeds2):
     origins = list()
     targets = list()
     for k,v in result.iteritems():
         origins.append(k)
     for k,v in result.iteritems():
-        for k_,v_ in v.iteritems():
+        #for k_,v_ in v:
             #if k_ not in targets: #targets include seeds
-            if k_ not in targets and k_ not in origins: #targets exclude seeds
-                targets.append(k_)
+        for v1,v2 in v.iteritems():
+            if v1 not in targets and v1 in pos_seeds2.keys(): # need to know how to exclude seeds (other than v1 not in origins)
+                targets.append(v1)
+                
+    print("outputs from origins_and_targets::::::::::")
+    print (origins)
+    print(targets)
     return origins, targets
 
 
@@ -692,8 +710,7 @@ def count_votes(mat, origins, targets, outdir, effective_vote_val=0.0):
     vote = mat.argmax(axis=1) #index of the max element (comparisons within one diffusion profile)
     vote_val = mat.max(axis=1) # axis = 1 --> max diffusion score per target
     for i in xrange(len(vote)):
-        if effective_vote_val < vote_val[i]:    # Assuming only the origin has the value of 1 (already excluded)
-                                                # some non-seeds have score over 1 as well
+        if effective_vote_val < vote_val[i] < 1.0:   
             # Record the name of the voters
             # score = mat[i, vote[i]]
             # vote_score[targets[vote[i]]].append([origins[i],score])
@@ -701,16 +718,14 @@ def count_votes(mat, origins, targets, outdir, effective_vote_val=0.0):
             vote_data[targets[vote[i]]].append(origins[i])
             cnt_mat[targets[vote[i]]]=vote_cnt[vote[i]]
     vote_data = dict(vote_data)
-    with open(r'tests/vote_profile_13_1.txt', 'w') as fh:
+    with open(r'tests/vote_profile.txt', 'w') as fh:
         for K, V in vote_data.items(): # v is origin/seed, K is target
             for v in V:
-                reader = csv.reader(open(os.path.join('tests/diffusion_profile_%s.tsv' % v)))
+                reader = csv.reader(open(os.path.join('tests/153171_diffusion_profile_%s.tsv' % v)))
                 for row in reader:
                     r = row[0].split('\t')
                     if K in r[0]:
-                        for key,cnt in cnt_mat.iteritems():
-                            if K in key:
-                                fh.write(K + "\t" + v + "\t" + str(cnt) +"\n")    
+                        fh.write(K + "\t" + v + "\t" + r[1] +"\n")    
 
     
     return vote, vote_cnt, vote_val, vote_data
@@ -748,7 +763,7 @@ def vote_visual (G, vote_data, outfile = 'vote_network.png', beta = None, cutoff
         nx.draw_networkx_labels(H, spring_pos, labels=nodelabels, font_size = 6)
     else:
         nx.draw_networkx_labels(H, spring_pos, labels=None, font_size = 6)
-    pp.savefig('vote_network.png')
+    pp.savefig('153171_tolE6_maxiter100_vote_network.png')
 
 
 def vote_dist (targets, vote_cnt, vote, outfile = 'vote_distribution.png'):
